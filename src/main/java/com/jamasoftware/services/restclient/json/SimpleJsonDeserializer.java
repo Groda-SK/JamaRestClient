@@ -75,9 +75,19 @@ public class SimpleJsonDeserializer {
                 return deserializeRelationshipType(resourceJson, jamaInstance);
             case "picklists":
                 return deserializePickList(resourceJson, jamaInstance);
+            case "attachments":
+                return deserializeattachments(resourceJson, jamaInstance);
             default:
                 throw new JsonException("type not found for object: " + resourceJson.toJSONString());
         }
+    }
+
+    private JamaDomainObject deserializeattachments(JSONObject resourceJson, JamaInstance jamaInstance) {
+        JamaAttachment attachment = new JamaAttachment(jamaInstance);
+        attachment.setAttachmentId(Integer.parseInt(String.valueOf(resourceJson.get("id"))));
+        attachment.setName(String.valueOf(resourceJson.get("fileName")));
+        attachment.setSize(Integer.parseInt(String.valueOf(resourceJson.get("fileSize"))));
+        return attachment;
     }
 
     private JamaRelationship deserializeRelationship(JSONObject relJson, JamaInstance jamaInstance) throws RestClientException {

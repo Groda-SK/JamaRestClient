@@ -3,3 +3,4 @@ username=username
 password=password
 apiKey=SUPER_SECRET_KEY
 resourceTimeOut=30
+oauth=true

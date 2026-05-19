@@ -17,6 +17,8 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
+import org.json.JSONException;
+
 public class JamaItem extends LazyResource implements JamaParent{
     protected TextFieldValue name;
     protected String globalId;
@@ -298,6 +300,10 @@ public class JamaItem extends LazyResource implements JamaParent{
     // returns a stagting item after removing the item from the jama instance pool of Ids
     public StagingItem edit() throws RestClientException{
         return jamaInstance.editItem(this);
+    }
+
+    public List<JamaAttachment> getItemAttachment(int itemId) throws RestClientException, JSONException {
+        return jamaInstance.getItemAttachment(itemId);
     }
 
 }

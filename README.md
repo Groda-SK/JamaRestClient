@@ -24,6 +24,7 @@ Please note that this client is distributed as-is as an example and will likely 
   - ```base_url```
   - ```resourceTimeOut```     - refresh time for items
   - ```apiKey```              - (optional) apiKey will be injected into requests' headers
+  - ```oauth```               - (optional) oauth will treat username to clientId and password to clientSecret and switch authentication mode to OAuth. apiKey should be blank when using oauth. possible values `true`, `false`.
   
 3. Change the name of the `jama.properties.dist`  to  `jama.properties`
 
@@ -48,6 +49,8 @@ Please note that this client is distributed as-is as an example and will likely 
 - Change an item's location 
 - GET all downstream/upstream related items
 - DELETE an item using its ID
+- GET immediate workflow transition options
+- POST an item workflow transition
 
 ##### Relationship Types
 - GET all relationship types in a project
@@ -61,7 +64,10 @@ Please note that this client is distributed as-is as an example and will likely 
 - PUT a relationship with updated fromItem, toItem, and/or relationshipType
 - POST a newly created relationship
 
-
+##### Attachments
+- GET all attachments of an item
+- PUT/POST attachments to an item
+- DELETE attachments from an item
 
 ## Usage Examples
 #### GET all Item Types in a Jama Instance 
@@ -221,6 +227,65 @@ try {
     JamaRelationship relationship = fromItem.getDownstreamRelationships().get(0);
     JamaRelationship updatedRelationship = relationship.edit().setFromItem(fromItem).setToItem(toItem).setRelationshipType(relationshipType).commit();
     System.out.println(updatedRelationship);
+} catch(RestClientException e) {
+    e.printStackTrace();
+}
+```
+
+#### GET all attachments from item
+```
+try {
+
+    JamaInstance jamaInstance = new JamaInstance(new JamaConfig(true));
+    List<JamaAttachment> attachments=jamaInstance.getItemAttachment(2209261);
+
+    for(JamaAttachment attachment:attachments) {
+        System.out.println(attachment.getItem().getId() + " " + attachment.getId());
+    }
+} catch(RestClientException e) {
+    e.printStackTrace();
+}
+```
+
+#### PUT/POST attachments to item
+```
+try {
+
+    JamaInstance jamaInstance = new JamaInstance(new JamaConfig(true));
+    int attachmentId = jamaInstance.postProjectAttachment(170, "test.txt", "");
+    jamaInstance.putAttachmentFile(attachmentId, "test.txt");
+    jamaInstance.postItemAttachment(480832, attachmentId);
+} catch(RestClientException e) {
+    e.printStackTrace();
+}
+```
+
+#### DELETE attachments from item
+```
+try {
+
+    JamaInstance jamaInstance = new JamaInstance(new JamaConfig(true));
+    List<JamaAttachment> attachments=jamaInstance.getItemAttachment(480832);
+    for(JamaAttachment attachment:attachments) {
+        jamaInstance.deleteAttachment(attachment.getItem().getId(), attachment.getId());
+    }
+} catch(RestClientException e) {
+    e.printStackTrace();
+}
+```
+
+#### GET/POST item workflow transition
+```
+try {
+
+    JamaInstance jamaInstance = new JamaInstance(new JamaConfig(true));
+    List<JamaAttachment> attachments=jamaInstance.listWorkflowTransitions(480832);
+    for (int i=0; i<object.length(); i++) {
+        JSONObject tranisition = (JSONObject) object.get(i);
+        if (tranisition.has("newStatus") && (int) tranisition.get("newStatus") == 1151) {
+            jamaInstance.executeWorkflowTransition(540048, (String) tranisition.get("id"));
+        }
+    }
 } catch(RestClientException e) {
     e.printStackTrace();
 }
