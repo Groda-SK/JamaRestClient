@@ -2,19 +2,29 @@ package com.jamasoftware.services.restclient.jamadomain.core;
 
 import com.jamasoftware.services.restclient.JamaConfig;
 import com.jamasoftware.services.restclient.JamaParent;
+import com.jamasoftware.services.restclient.jamadomain.fields.JamaField;
 import com.jamasoftware.services.restclient.jamadomain.lazyresources.*;
 import com.jamasoftware.services.restclient.exception.RestClientException;
+import com.jamasoftware.services.restclient.httpconnection.Response;
 import com.jamasoftware.services.restclient.jamaclient.JamaClient;
 import com.jamasoftware.services.restclient.jamadomain.stagingresources.StagingItem;
 import com.jamasoftware.services.restclient.jamadomain.stagingresources.StagingRelationship;
 import com.jamasoftware.services.restclient.jamadomain.stagingresources.StagingResource;
+import com.jamasoftware.services.restclient.jamadomain.values.JamaFieldValue;
 import com.jamasoftware.services.restclient.util.CompareUtil;
 
+import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Map.Entry;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class JamaInstance implements JamaDomainObject {
     private JamaClient jamaClient;
@@ -36,7 +46,8 @@ public class JamaInstance implements JamaDomainObject {
                 jamaConfig.getUsername(),
                 jamaConfig.getPassword(),
                 jamaConfig.getOpenUrlBase(),
-                jamaConfig.getApiKey());
+                jamaConfig.getApiKey(),
+                jamaConfig.isOauth());
     }
 
     private JamaDomainObject getPoolOrNull(String key) {
@@ -144,6 +155,72 @@ public class JamaInstance implements JamaDomainObject {
             resourcePool.put(key, new WeakReference<>((JamaDomainObject)item));
         }
         return item;
+    }
+    
+    public List<JamaItem> findItem(int projectId, String searchstring) throws RestClientException {
+    	List<JamaItem> items = new ArrayList<>();
+    	StringBuilder builder = new StringBuilder("abstractitems");
+    	if(projectId>0) {
+    		builder.append("?");
+    		builder.append("project=" + projectId);
+    	}
+    	if (searchstring!=null) {
+    		if (builder.toString().contains("?")) {
+    			builder.append("&");
+    		} else {
+    			builder.append("?");
+    		}
+    		builder.append("contains=" + searchstring);
+    	}
+    	String resource = builder.toString();
+    	
+    	List<JamaDomainObject> jamaDomainObjects =  jamaClient.getAll(jamaConfig.getBaseUrl() + resource, this);
+    	for(JamaDomainObject jamaDomainObject : jamaDomainObjects) {
+    		if (jamaDomainObject instanceof JamaItem)
+    			items.add((JamaItem) jamaDomainObject);
+    	}
+    	return items;
+    }
+
+    public int postProjectAttachment(int projectID, String name, String description) throws RestClientException, JSONException {
+        String url=jamaConfig.getBaseUrl() + "projects/" + projectID + "/attachments";
+        String payload="{\"fields\": {\"name\": \"" + name + "\", \"description\": \"" + description + "\"}}";
+        Response response=jamaClient.postRaw(url, payload);
+        JSONObject responsejson = new JSONObject(response.getResponse());
+        return (int) ((JSONObject) responsejson.get("meta")).get("id");
+    }
+
+    public void putAttachmentFile(int attachmentId, String filepath) throws RestClientException {
+        String url = jamaConfig.getBaseUrl() + "attachments/" + attachmentId + "/file";
+        File attachmentFile = new File(filepath);
+        Response response=jamaClient.putAttachment(url, attachmentFile);
+        if (response.getStatusCode()!=200)
+            throw new RestClientException("Couldn't put file to Jama. Status code " + response.getStatusCode());
+    }
+
+    public void postItemAttachment(int itemId, int attachmentId) throws JSONException, RestClientException {
+        String url = jamaConfig.getBaseUrl() + "items/" + itemId + "/attachments";
+        JSONObject object = new JSONObject();
+        object.put("attachment", attachmentId);
+        String payload = object.toString();
+        Response response=jamaClient.postRaw(url, payload);
+        if(response.getStatusCode()>=400)
+            throw new RestClientException("Couldn't post attachment to item " + itemId);
+    }
+
+    public List<JamaAttachment> getItemAttachment(int itemId) throws RestClientException, JSONException {
+        String url = jamaConfig.getBaseUrl() + "items/" + itemId + "/attachments";
+        return jamaClient.getAttachment(url, this, itemId);
+    }
+
+    public void deleteAttachment(int itemId, int attachmentId) throws RestClientException {
+        String url = jamaConfig.getBaseUrl() + "items/" + itemId + "/attachments/" + attachmentId;
+        jamaClient.deleteRaw(url);
+    }
+
+    public List<JamaAttachment> getAttachmentByID(int attachmentid) throws RestClientException, JSONException {
+        String url = jamaConfig.getBaseUrl() + "abstractitems?itemType=22&contains=" + attachmentid;
+        return jamaClient.getAttachment(url, this, attachmentid);
     }
 
     public JamaRelationship getRelationship(int id) throws RestClientException {
@@ -253,5 +330,35 @@ public class JamaInstance implements JamaDomainObject {
             relationshipTypeList = new RelationshipTypeList(this);
         }
         return relationshipTypeList.getRelationshipTypes();
+    }
+
+    public String executeWorkflowTransition(int itemId, String stateId) throws RestClientException, JSONException {
+        String url=jamaConfig.getBaseUrl() + "items/" + itemId + "/workflowtransitions";
+        String payload="{\"transitionId\": \"" + stateId + "\",\"comment\": \"\"}";
+        Response response=jamaClient.postRaw(url, payload);
+        JSONObject responsejson = new JSONObject(response.getResponse());
+        return (String) ((JSONObject) responsejson.get("meta")).get("status");
+    }
+
+    public JSONArray listWorkflowTransitions(int itemId) throws RestClientException, JSONException {
+        String url=jamaConfig.getBaseUrl() + "items/" + itemId + "/workflowtransitionoptions";
+        return jamaClient.getAvailableWorkflowTransitions(url, this);
+    }
+
+    public int patchItem(int itemId, List<Map<String,Object>> listoffields) throws JSONException, RestClientException {
+        String url=jamaConfig.getBaseUrl() + "items/" + itemId;
+        List<JSONObject> list = new ArrayList<>();
+
+        for (Map<String,Object> field:listoffields) {
+            JSONObject entry = new JSONObject();
+            entry.put("op", field.get("action"));
+            Map<String, Object> fielddata = (Map<String, Object>) field.get("field");
+            entry.put("path", "/fields/" + fielddata.get("name"));
+            if(field.get("action").equals("add"))
+                entry.put("value", fielddata.get("value"));
+            list.add(entry);
+        }
+        JSONArray payload = new JSONArray(list);
+        return jamaClient.patchItem(url, payload.toString());
     }
 }

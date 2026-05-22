@@ -1,13 +1,13 @@
 package com.jamasoftware.services.restclient;
 
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.util.Properties;
+
 import com.jamasoftware.services.restclient.httpconnection.ApacheHttpClient;
 import com.jamasoftware.services.restclient.httpconnection.HttpClient;
 import com.jamasoftware.services.restclient.json.JsonHandler;
 import com.jamasoftware.services.restclient.json.SimpleJsonHandler;
-
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.util.Properties;
 
 public class JamaConfig {
     private String baseUrl;
@@ -19,6 +19,7 @@ public class JamaConfig {
     private Integer resourceTimeOut;    //value is seconds
     private String openUrlBase;
     private String apiKey = null;
+    private boolean oauth;
 
     public JamaConfig() {
         json = new SimpleJsonHandler();
@@ -46,6 +47,7 @@ public class JamaConfig {
             setOpenUrlBase(properties.getProperty("baseUrl"));
             apiKey = properties.getProperty("apiKey");
             resourceTimeOut = Integer.valueOf(timeOutString);
+            oauth = Boolean.getBoolean(properties.getProperty("oauth"));
         } catch(Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -70,6 +72,7 @@ public class JamaConfig {
             apiKey = properties.getProperty("apiKey");
             String timeOutString = properties.getProperty("resourceTimeOut");
             resourceTimeOut = Integer.valueOf(timeOutString);
+            oauth = Boolean.parseBoolean(properties.getProperty("oauth"));
         } catch(Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -174,4 +177,12 @@ public class JamaConfig {
     public String getApiKey() {
         return this.apiKey;
     }
+
+	public boolean isOauth() {
+		return oauth;
+	}
+
+	public void setOauth(String oauth) {
+		this.oauth = Boolean.valueOf(oauth);
+	}
 }
