@@ -123,7 +123,8 @@ public class ApacheHttpClient implements HttpClient {
     private boolean isTokenValid() {
     	DecodedJWT decodedJWT = JWT.decode(jwtToken);
     	Date expiresAt = decodedJWT.getExpiresAt();
-    	return expiresAt.after(new Date());
+		Date future = new Date(System.currentTimeMillis() + 30000);
+    	return expiresAt.after(future);
 	}
 
 	private String getEntityContentOrNull(HttpEntity responseEntity) {
