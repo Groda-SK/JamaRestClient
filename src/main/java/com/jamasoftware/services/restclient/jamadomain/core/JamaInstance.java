@@ -25,6 +25,7 @@ import java.util.Map.Entry;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.simple.parser.JSONParser;
 
 public class JamaInstance implements JamaDomainObject {
     private JamaClient jamaClient;
@@ -360,5 +361,24 @@ public class JamaInstance implements JamaDomainObject {
         }
         JSONArray payload = new JSONArray(list);
         return jamaClient.patchItem(url, payload.toString());
+    }
+    
+    public List<Map<String, Object>> getRelationshipRules(int projectid) throws RestClientException, JSONException {
+    	List<Map<String, Object>> listofrules = new ArrayList<Map<String,Object>>();
+    	String url=jamaConfig.getBaseUrl() + "relationshiprulesets";
+    	JSONObject ruleset = jamaClient.getRelationshipRules(url, projectid);
+    	JSONArray rules = (JSONArray) ruleset.get("rules");
+    	for (int i=0; i<rules.length(); i++) {
+    		Map<String, Object> map = new HashMap<String, Object>();
+    		JSONObject rule = (JSONObject) rules.get(i);
+    		map.put("id", rule.get("id"));
+    		map.put("fromItemTypeId", rule.get("fromItemTypeId"));
+    		map.put("toItemTypeId", rule.get("toItemTypeId"));
+    		map.put("forCoverage", rule.get("forCoverage"));
+    		map.put("relationshipTypeId", rule.get("relationshipTypeId"));
+    		listofrules.add(map);
+    	}
+		return listofrules;
+    	
     }
 }

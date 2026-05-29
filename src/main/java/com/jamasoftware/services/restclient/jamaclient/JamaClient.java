@@ -21,6 +21,7 @@ import java.util.Map;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.simple.parser.JSONParser;
 
 public class JamaClient {
     private HttpClient httpClient;
@@ -184,4 +185,39 @@ public class JamaClient {
         Response response = httpClient.patch(url, username, password, apiKey, payload, oauth);
         return response.getStatusCode();
     }
+
+	public JSONObject getRelationshipRules(String url, int projectid) throws RestClientException, JSONException {
+		
+		int allowedResults = 50;
+        String maxResults = "maxResults=" + allowedResults;
+        
+        long resultCount = -1;
+        long startIndex = 0;
+        
+        while(resultCount != 0) {
+        	String startAt = "startAt=" + startIndex;
+        	String requestURL = url + "?" + startAt + "&" + maxResults;
+        	
+        	Response response = httpClient.get(requestURL, username, password, apiKey, oauth);
+        	JSONObject object = new JSONObject(response.getResponse());
+        	JSONObject meta = (JSONObject) object.get("meta");
+        	JSONObject pageInfo = (JSONObject) meta.get("pageInfo");
+        	
+        	startIndex = Long.valueOf((int)pageInfo.get("startIndex") + allowedResults);
+            resultCount = Long.valueOf((int)pageInfo.get("resultCount"));
+            
+            JSONArray rulesets = (JSONArray) object.get("data");
+            for (int i=0; i<rulesets.length();i++) {
+            	JSONObject o= (JSONObject) rulesets.get(i);
+            	JSONArray projects = (JSONArray) o.get("mappedProjects");
+            	for (int j=0; j<projects.length(); j++) {
+            		JSONObject p= (JSONObject) projects.get(j);
+            		if (p.get("id").equals(projectid))
+            			return o;
+            	}
+            }
+        }
+		
+        throw new RestClientException("No Relationship ruleset is assigned to the Project.");
+	}
 }
