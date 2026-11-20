@@ -17,17 +17,17 @@
 
 	<groupId>com.jamasoftware.services</groupId>
 	<artifactId>rest-client</artifactId>
-	<version>1.2.11-SNAPSHOT</version>
+	<version>1.2.12</version>
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
-			<version>4.5.2</version>
+			<version>4.5.14</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpmime</artifactId>
-			<version>4.5.2</version>
+			<version>4.5.14</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
