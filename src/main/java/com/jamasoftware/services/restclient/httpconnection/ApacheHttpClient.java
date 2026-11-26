@@ -11,19 +11,24 @@ import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthenticationException;
 import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.*;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
 import org.apache.http.config.SocketConfig;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.ssl.SSLContexts;
-import org.apache.http.ssl.TrustStrategy;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -32,52 +37,63 @@ import javax.net.ssl.SSLContext;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+
 public class ApacheHttpClient implements HttpClient {
     private final Logger log = Logger.getLogger(ApacheHttpClient.class.getName());
 
-    private org.apache.http.client.HttpClient client;
+    private CloseableHttpClient client;
     private String jwtToken;
 
     public ApacheHttpClient() throws RestClientException {
-        PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
-        connectionManager.setDefaultMaxPerRoute(10);
-        try
-        {
+        try {
             SSLContext sslContext = SSLContexts.custom()
-                    .loadTrustMaterial(null, new TrustStrategy() {
-                        @Override
-                        public boolean isTrusted(final X509Certificate[] chain, final String authType) throws CertificateException {
-                            return true;
-                        }
-                    })
+                    .loadTrustMaterial(null, (chain, authType) -> true)
                     .build();
             SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(
                     sslContext,
                     NoopHostnameVerifier.INSTANCE);
-            SocketConfig socketConfig = SocketConfig.custom()
-                    .setSoTimeout(20000)
+
+            Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
+                    .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                    .register("https", sslsf)
                     .build();
-            connectionManager.setDefaultSocketConfig(socketConfig);
-            client = HttpClients
-                    .custom()
+
+            PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager(
+                    socketFactoryRegistry,
+                    null,
+                    null,
+                    null,
+                    20, TimeUnit.SECONDS
+            );
+            connectionManager.setMaxTotal(5);
+            connectionManager.setDefaultMaxPerRoute(5);
+            connectionManager.setDefaultSocketConfig(SocketConfig.custom()
+                    .setSoTimeout(20000)
+                    .build());
+
+            RequestConfig requestConfig = RequestConfig.custom()
+                    .setConnectionRequestTimeout(5000)
+                    .setConnectTimeout(5000)
+                    .setSocketTimeout(20000)
+                    .build();
+
+            this.client = HttpClients.custom()
+                    .setConnectionManager(connectionManager)
+                    .setDefaultRequestConfig(requestConfig)
                     .disableAuthCaching()
-                    .setConnectionTimeToLive(20, TimeUnit.SECONDS)
                     .disableCookieManagement()
                     .disableRedirectHandling()
-                    .setSSLSocketFactory(sslsf)
-                    .setSSLContext(sslContext)
+                    .evictExpiredConnections()
+                    .evictIdleConnections(30, TimeUnit.SECONDS)
                     .build();
+
             this.jwtToken = "";
-        }
-        catch (Exception e)
-        {
+        } catch (Exception e) {
             throw new RestClientException(e);
         }
     }
