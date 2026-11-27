@@ -355,7 +355,7 @@ public class JamaInstance implements JamaDomainObject {
             entry.put("op", field.get("action"));
             Map<String, Object> fielddata = (Map<String, Object>) field.get("field");
             entry.put("path", "/fields/" + fielddata.get("name"));
-            if(field.get("action").equals("add"))
+            if(field.get("action").equals("add") || field.get("action").equals("replace"))
                 entry.put("value", fielddata.get("value"));
             list.add(entry);
         }
